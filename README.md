@@ -39,4 +39,5 @@ data/       — budget.db (в .gitignore; бэкап = копия файла)
 
 ## Деплой
 
-Инструкция для hoster.ru (VPS + systemd + nginx + HTTPS): [DEPLOY.md](DEPLOY.md)
+- **Cloud.ru Evolution (бесплатная ВМ free tier)**: [DEPLOY-CLOUDRU.md](DEPLOY-CLOUDRU.md)
+- hoster.ru (VPS + systemd + nginx + HTTPS): [DEPLOY.md](DEPLOY.md)
