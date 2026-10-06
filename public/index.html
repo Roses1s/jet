@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4f6df5">
+  <title>Семейный бюджет</title>
+  <!-- PWA: манифест и иконки для установки на главный экран -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Бюджет">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ───── Экран выбора пользователя (показывается при первом входе) ───── -->
+  <div id="user-screen" class="user-screen hidden">
+    <h1>👋 Привет!</h1>
+    <p>Кто сейчас пользуется приложением?</p>
+    <div class="user-buttons">
+      <button class="user-btn" data-user="me">👨<span>Я</span></button>
+      <button class="user-btn" data-user="wife">👩<span>Жена</span></button>
+    </div>
+  </div>
+
+  <!-- ───── Основное приложение ───── -->
+  <div id="app" class="app hidden">
+
+    <!-- Шапка: название + текущий пользователь (тап = сменить) -->
+    <header class="header">
+      <div class="header-title">💰 Семейный бюджет</div>
+      <button id="user-chip" class="user-chip" title="Сменить пользователя"></button>
+    </header>
+
+    <!-- Переключатель месяца, общий для обеих вкладок -->
+    <div class="month-nav">
+      <button id="month-prev" class="month-arrow">‹</button>
+      <div id="month-label" class="month-label"></div>
+      <button id="month-next" class="month-arrow">›</button>
+    </div>
+
+    <main class="content">
+
+      <!-- ───── Вкладка «Дашборд» ───── -->
+      <section id="view-dashboard" class="view">
+        <div class="balance-card">
+          <div class="balance-title">Баланс за месяц</div>
+          <div id="balance-value" class="balance-value">0 ₽</div>
+          <div class="balance-row">
+            <div class="balance-io income">↑ <span id="income-value">0 ₽</span></div>
+            <div class="balance-io expense">↓ <span id="expense-value">0 ₽</span></div>
+          </div>
+        </div>
+
+        <h2 class="section-title">Расходы: я / жена / общие</h2>
+        <div id="owner-breakdown" class="owner-breakdown"></div>
+
+        <h2 class="section-title">Расходы по категориям</h2>
+        <div id="category-breakdown" class="category-breakdown"></div>
+
+        <!-- Этап 3: тренды за последние месяцы -->
+        <h2 class="section-title">Тренды за 6 месяцев</h2>
+        <div class="card-block">
+          <div id="trend-chart" class="chart"></div>
+          <div class="chart-legend">
+            <span><i class="dot" style="background:var(--green)"></i>Доходы</span>
+            <span><i class="dot" style="background:var(--red)"></i>Расходы</span>
+          </div>
+          <div id="trend-info" class="trend-info"></div>
+        </div>
+      </section>
+
+      <!-- ───── Вкладка «Цели» (Этап 2) ───── -->
+      <section id="view-goals" class="view hidden">
+        <div id="goals-list"></div>
+        <button id="goal-add-btn" class="outline-btn">＋ Новая цель</button>
+      </section>
+
+      <!-- ───── Вкладка «Ещё»: лимиты + повторяющиеся (Этап 2) ───── -->
+      <section id="view-more" class="view hidden">
+        <h2 class="section-title">Лимиты на месяц</h2>
+        <div class="card-block">
+          <div id="limits-list"></div>
+          <button id="limits-save" class="submit-btn small">Сохранить лимиты</button>
+        </div>
+
+        <h2 class="section-title">Повторяющиеся платежи</h2>
+        <div id="recurring-list"></div>
+        <button id="rec-add-btn" class="outline-btn">＋ Добавить платёж</button>
+        <p class="hint">Платёж создастся автоматически, когда наступит его день месяца.</p>
+
+        <!-- Этап 3: тема и экспорт -->
+        <h2 class="section-title">Настройки и данные</h2>
+        <div class="card-block">
+          <div class="setting-row">
+            <span class="limit-name">🌙 Тёмная тема</span>
+            <button id="theme-switch" class="switch" title="Переключить тему"></button>
+          </div>
+          <a id="export-all" class="export-link" href="/api/export.csv" download>
+            📄 Экспорт всех операций (CSV)
+          </a>
+          <a id="export-month" class="export-link" href="/api/export.csv" download>
+            📄 Экспорт за текущий месяц (CSV)
+          </a>
+        </div>
+      </section>
+
+      <!-- ───── Вкладка «Операции» ───── -->
+      <section id="view-transactions" class="view hidden">
+        <div class="filters">
+          <select id="filter-type" class="filter">
+            <option value="">Все типы</option>
+            <option value="expense">Расходы</option>
+            <option value="income">Доходы</option>
+          </select>
+          <select id="filter-owner" class="filter">
+            <option value="">Все: я/жена/общие</option>
+            <option value="me">Мои</option>
+            <option value="wife">Её</option>
+            <option value="shared">Общие</option>
+          </select>
+          <select id="filter-category" class="filter">
+            <option value="">Все категории</option>
+          </select>
+        </div>
+        <div id="tx-list" class="tx-list"></div>
+      </section>
+
+    </main>
+
+    <!-- Плавающая кнопка добавления -->
+    <button id="fab" class="fab" title="Добавить операцию">+</button>
+
+    <!-- Нижняя навигация -->
+    <nav class="tabbar">
+      <button class="tab active" data-view="dashboard">📊<span>Дашборд</span></button>
+      <button class="tab" data-view="transactions">📋<span>Операции</span></button>
+      <button class="tab" data-view="goals">🎯<span>Цели</span></button>
+      <button class="tab" data-view="more">⚙️<span>Ещё</span></button>
+    </nav>
+  </div>
+
+  <!-- ───── Модальное окно добавления операции ───── -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <form id="tx-form" class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Новая операция</h2>
+
+      <!-- Расход / Доход -->
+      <div class="segmented" id="seg-type">
+        <button type="button" class="seg active" data-type="expense">Расход</button>
+        <button type="button" class="seg" data-type="income">Доход</button>
+      </div>
+
+      <!-- Сумма -->
+      <div class="amount-wrap">
+        <input id="f-amount" type="number" inputmode="decimal" step="0.01" min="0.01"
+               placeholder="0" required autocomplete="off">
+        <span class="amount-currency">₽</span>
+      </div>
+
+      <!-- Категории (чипы, зависят от типа) -->
+      <div id="f-categories" class="chips"></div>
+
+      <!-- Чья операция -->
+      <label class="field-label">Чья операция</label>
+      <div class="segmented" id="seg-owner">
+        <button type="button" class="seg" data-owner="me">👨 Мои</button>
+        <button type="button" class="seg" data-owner="wife">👩 Её</button>
+        <button type="button" class="seg" data-owner="shared">👨‍👩‍👧 Общие</button>
+      </div>
+
+      <!-- Дата и комментарий -->
+      <div class="form-row">
+        <input id="f-date" type="date" required>
+        <input id="f-comment" type="text" placeholder="Комментарий" maxlength="100">
+      </div>
+
+      <button id="tx-submit" type="submit" class="submit-btn">Добавить</button>
+    </form>
+  </div>
+
+  <!-- ───── Модалка: новая цель-копилка ───── -->
+  <div id="goal-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="goal-modal"></div>
+    <form id="goal-form" class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Новая цель</h2>
+      <div id="goal-emojis" class="chips center"></div>
+      <div class="form-row">
+        <input id="g-title" type="text" placeholder="Например: Отпуск" maxlength="40" required>
+      </div>
+      <div class="amount-wrap">
+        <input id="g-target" type="number" inputmode="numeric" step="1" min="1"
+               placeholder="Сумма цели" required autocomplete="off">
+        <span class="amount-currency">₽</span>
+      </div>
+      <button type="submit" class="submit-btn">Создать цель</button>
+    </form>
+  </div>
+
+  <!-- ───── Модалка: пополнение / снятие из копилки ───── -->
+  <div id="deposit-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="deposit-modal"></div>
+    <form id="deposit-form" class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 id="deposit-title" class="modal-title">Пополнить копилку</h2>
+      <div class="segmented" id="seg-dep">
+        <button type="button" class="seg active" data-dep="add">Пополнить</button>
+        <button type="button" class="seg" data-dep="withdraw">Снять</button>
+      </div>
+      <div class="amount-wrap">
+        <input id="d-amount" type="number" inputmode="decimal" step="0.01" min="0.01"
+               placeholder="0" required autocomplete="off">
+        <span class="amount-currency">₽</span>
+      </div>
+      <label class="field-label">Кто вносит</label>
+      <div class="segmented" id="seg-dep-owner">
+        <button type="button" class="seg" data-owner="me">👨 Я</button>
+        <button type="button" class="seg" data-owner="wife">👩 Жена</button>
+        <button type="button" class="seg" data-owner="shared">👨‍👩‍👧 Общие</button>
+      </div>
+      <button type="submit" class="submit-btn">Готово</button>
+    </form>
+  </div>
+
+  <!-- ───── Модалка: повторяющийся платёж ───── -->
+  <div id="rec-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="rec-modal"></div>
+    <form id="rec-form" class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Повторяющийся платёж</h2>
+      <div class="segmented" id="seg-rec-type">
+        <button type="button" class="seg active" data-type="expense">Расход</button>
+        <button type="button" class="seg" data-type="income">Доход</button>
+      </div>
+      <div class="form-row">
+        <input id="r-title" type="text" placeholder="Название: Аренда, Интернет…" maxlength="40" required>
+      </div>
+      <div class="amount-wrap">
+        <input id="r-amount" type="number" inputmode="decimal" step="0.01" min="0.01"
+               placeholder="0" required autocomplete="off">
+        <span class="amount-currency">₽</span>
+      </div>
+      <div id="r-categories" class="chips"></div>
+      <label class="field-label">Чей платёж</label>
+      <div class="segmented" id="seg-rec-owner">
+        <button type="button" class="seg" data-owner="me">👨 Мои</button>
+        <button type="button" class="seg" data-owner="wife">👩 Её</button>
+        <button type="button" class="seg" data-owner="shared">👨‍👩‍👧 Общие</button>
+      </div>
+      <label class="field-label" for="r-day">День месяца (1–31)</label>
+      <div class="form-row">
+        <input id="r-day" type="number" inputmode="numeric" min="1" max="31" value="1" required>
+      </div>
+      <button type="submit" class="submit-btn">Сохранить</button>
+    </form>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
